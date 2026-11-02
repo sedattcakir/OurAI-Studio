@@ -2,6 +2,7 @@ using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using CakAI.API.Data;
 using CakAI.API.Models;
@@ -15,12 +16,14 @@ public class AiProxyController : ControllerBase
 {
     private readonly HttpClient _http;
     private readonly AppDbContext _db;
+    private readonly UserManager<AppUser> _userManager;
     private readonly string _aiServiceUrl;
 
-    public AiProxyController(HttpClient http, AppDbContext db, IConfiguration config)
+    public AiProxyController(HttpClient http, AppDbContext db, UserManager<AppUser> userManager, IConfiguration config)
     {
         _http = http;
         _db = db;
+        _userManager = userManager;
         _aiServiceUrl = config["AiService:BaseUrl"] ?? "http://localhost:8000";
     }
 
@@ -37,6 +40,11 @@ public class AiProxyController : ControllerBase
     public async Task<IActionResult> Generate(GenerateRequest req)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
+        if (user.ApiCallsToday >= user.DailyApiLimit)
+            return StatusCode(429, new { error = "Daily API limit reached. Upgrade your plan for more.", limit = user.DailyApiLimit });
 
         var model = req.Model ?? "ourllm";
         var action = req.Action ?? "generate";
@@ -92,6 +100,10 @@ public class AiProxyController : ControllerBase
                     modelName = modelProp.GetString() ?? model;
                 if (result.TryGetProperty("tokens_generated", out var tokensProp))
                     tokensUsed = tokensProp.GetInt32();
+
+                user.ApiCallsToday++;
+                user.TotalApiCalls++;
+                await _userManager.UpdateAsync(user);
 
                 _db.ApiUsageLogs.Add(new ApiUsageLog
                 {

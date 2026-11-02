@@ -9,6 +9,7 @@ const navItems = [
   { path: "/speech", label: "Speech (STT)", icon: "headphones" },
   { path: "/video", label: "Video Generation", icon: "film" },
   { path: "/avatar", label: "Avatar", icon: "user" },
+  { path: "/settings", label: "Settings", icon: "settings" },
 ];
 
 function Layout() {

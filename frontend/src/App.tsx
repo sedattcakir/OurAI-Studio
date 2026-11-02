@@ -8,7 +8,9 @@ import VoiceSynthesis from "./pages/VoiceSynthesis";
 import SpeechRecognition from "./pages/SpeechRecognition";
 import VideoGeneration from "./pages/VideoGeneration";
 import AvatarGeneration from "./pages/AvatarGeneration";
+import SettingsPage from "./pages/SettingsPage";
 import LoginPage from "./pages/LoginPage";
+import PricingPage from "./pages/PricingPage";
 import RegisterPage from "./pages/RegisterPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -24,6 +26,7 @@ function App() {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/pricing" element={<PricingPage />} />
         <Route
           path="/"
           element={
@@ -39,6 +42,7 @@ function App() {
           <Route path="speech" element={<SpeechRecognition />} />
           <Route path="video" element={<VideoGeneration />} />
           <Route path="avatar" element={<AvatarGeneration />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
     </AuthProvider>

@@ -8,4 +8,8 @@ public class AppUser : IdentityUser
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public int ApiCallsToday { get; set; }
     public int TotalApiCalls { get; set; }
+    public string SubscriptionTier { get; set; } = "free";
+    public DateTime? SubscriptionExpiresAt { get; set; }
+    public int DailyApiLimit { get; set; } = 50;
+    public bool IsAdmin { get; set; }
 }
