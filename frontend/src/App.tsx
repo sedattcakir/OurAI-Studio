@@ -7,6 +7,7 @@ import ImageGeneration from "./pages/ImageGeneration";
 import VoiceSynthesis from "./pages/VoiceSynthesis";
 import SpeechRecognition from "./pages/SpeechRecognition";
 import VideoGeneration from "./pages/VideoGeneration";
+import AvatarGeneration from "./pages/AvatarGeneration";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -37,6 +38,7 @@ function App() {
           <Route path="voice" element={<VoiceSynthesis />} />
           <Route path="speech" element={<SpeechRecognition />} />
           <Route path="video" element={<VideoGeneration />} />
+          <Route path="avatar" element={<AvatarGeneration />} />
         </Route>
       </Routes>
     </AuthProvider>
