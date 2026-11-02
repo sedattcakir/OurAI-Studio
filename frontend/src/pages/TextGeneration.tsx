@@ -11,12 +11,12 @@ function TextGeneration() {
     setLoading(true);
     setResult("");
     try {
-      const response = await axios.post("/api/ai/generate-text", {
+      const response = await axios.post("/llm/generate", {
         prompt: prompt.trim(),
-        maxTokens: 50,
+        max_tokens: 50,
         temperature: 0.8,
       });
-      setResult(response.data.generatedText);
+      setResult(response.data.generated_text);
     } catch {
       setResult("Error: Could not generate text. Is the AI service running?");
     } finally {

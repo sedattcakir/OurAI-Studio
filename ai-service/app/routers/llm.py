@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import torch
 
-MODELS_ROOT = Path(__file__).parent.parent.parent.parent / "OurAI-Models"
+MODELS_ROOT = Path(__file__).parent.parent.parent.parent.parent / "OurAI-Models"
 sys.path.insert(0, str(MODELS_ROOT))
 
 router = APIRouter()
