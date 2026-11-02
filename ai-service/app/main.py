@@ -1,8 +1,20 @@
+from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import llm
+from app.routers import llm, jobs
+from app.orchestrator.queue import start_worker, shutdown_worker, register_handler
+from app.orchestrator.handlers.llm_handler import llm_handle
 
-app = FastAPI(title="CakAI AI Service", version="0.1.0")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    register_handler("ourllm", llm_handle)
+    await start_worker()
+    yield
+    await shutdown_worker()
+
+
+app = FastAPI(title="CakAI AI Service", version="0.2.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -13,8 +25,9 @@ app.add_middleware(
 )
 
 app.include_router(llm.router, prefix="/llm", tags=["LLM"])
+app.include_router(jobs.router, prefix="/jobs", tags=["Jobs"])
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "cakai-ai-service"}
+    return {"status": "ok", "service": "cakai-ai-service", "version": "0.2.0"}

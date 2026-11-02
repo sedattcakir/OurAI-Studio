@@ -31,35 +31,75 @@ public class AiProxyController : ControllerBase
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        var payload = JsonSerializer.Serialize(new
+        var submitPayload = JsonSerializer.Serialize(new
         {
-            prompt = req.Prompt,
-            max_tokens = req.MaxTokens,
-            temperature = req.Temperature,
+            model = "ourllm",
+            action = "generate",
+            @params = new
+            {
+                prompt = req.Prompt,
+                max_tokens = req.MaxTokens,
+                temperature = req.Temperature,
+            },
         });
 
-        var content = new StringContent(payload, Encoding.UTF8, "application/json");
-        var response = await _http.PostAsync($"{_aiServiceUrl}/llm/generate", content);
+        var submitContent = new StringContent(submitPayload, Encoding.UTF8, "application/json");
+        var submitResponse = await _http.PostAsync($"{_aiServiceUrl}/jobs/submit", submitContent);
 
-        if (!response.IsSuccessStatusCode)
+        if (!submitResponse.IsSuccessStatusCode)
         {
-            var error = await response.Content.ReadAsStringAsync();
-            return StatusCode((int)response.StatusCode, error);
+            var error = await submitResponse.Content.ReadAsStringAsync();
+            return StatusCode((int)submitResponse.StatusCode, error);
         }
 
-        var result = await response.Content.ReadAsStringAsync();
-        var json = JsonDocument.Parse(result);
-        var tokensGenerated = json.RootElement.GetProperty("tokens_generated").GetInt32();
+        var submitResult = JsonDocument.Parse(await submitResponse.Content.ReadAsStringAsync());
+        var jobId = submitResult.RootElement.GetProperty("id").GetString()!;
 
-        _db.ApiUsageLogs.Add(new ApiUsageLog
+        for (var i = 0; i < 60; i++)
         {
-            UserId = userId,
-            Endpoint = "/api/ai/generate",
-            ModelName = "OurLLM-v0.2",
-            TokensUsed = tokensGenerated,
-        });
-        await _db.SaveChangesAsync();
+            await Task.Delay(500);
+            var statusResponse = await _http.GetAsync($"{_aiServiceUrl}/jobs/{jobId}");
+            var statusJson = JsonDocument.Parse(await statusResponse.Content.ReadAsStringAsync());
+            var status = statusJson.RootElement.GetProperty("status").GetString();
 
+            if (status == "completed")
+            {
+                var result = statusJson.RootElement.GetProperty("result");
+                var tokensGenerated = result.GetProperty("tokens_generated").GetInt32();
+
+                _db.ApiUsageLogs.Add(new ApiUsageLog
+                {
+                    UserId = userId,
+                    Endpoint = "/api/ai/generate",
+                    ModelName = "OurLLM-v0.2",
+                    TokensUsed = tokensGenerated,
+                });
+                await _db.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    generated_text = result.GetProperty("generated_text").GetString(),
+                    model = result.GetProperty("model").GetString(),
+                    tokens_generated = tokensGenerated,
+                    job_id = jobId,
+                });
+            }
+
+            if (status == "failed")
+            {
+                var errorMsg = statusJson.RootElement.GetProperty("error").GetString();
+                return StatusCode(500, new { error = errorMsg, job_id = jobId });
+            }
+        }
+
+        return StatusCode(408, new { error = "Job timed out", job_id = jobId });
+    }
+
+    [HttpGet("job/{jobId}")]
+    public async Task<IActionResult> GetJobStatus(string jobId)
+    {
+        var response = await _http.GetAsync($"{_aiServiceUrl}/jobs/{jobId}");
+        var result = await response.Content.ReadAsStringAsync();
         return Content(result, "application/json");
     }
 }

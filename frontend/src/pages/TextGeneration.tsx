@@ -5,11 +5,15 @@ function TextGeneration() {
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
   const [loading, setLoading] = useState(false);
+  const [jobStatus, setJobStatus] = useState("");
+  const [jobId, setJobId] = useState("");
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setLoading(true);
     setResult("");
+    setJobStatus("Submitting...");
+    setJobId("");
     try {
       const response = await axios.post("/api/ai/generate", {
         prompt: prompt.trim(),
@@ -17,8 +21,11 @@ function TextGeneration() {
         temperature: 0.8,
       });
       setResult(response.data.generated_text);
+      setJobId(response.data.job_id || "");
+      setJobStatus("Completed");
     } catch {
       setResult("Error: Could not generate text. Is the AI service running?");
+      setJobStatus("Failed");
     } finally {
       setLoading(false);
     }
@@ -43,8 +50,18 @@ function TextGeneration() {
         </button>
       </div>
 
+      {(loading || jobStatus) && (
+        <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
+          {loading && (
+            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          )}
+          <span>Status: {loading ? "Processing..." : jobStatus}</span>
+          {jobId && <span className="text-xs text-gray-400">Job: {jobId.slice(0, 8)}</span>}
+        </div>
+      )}
+
       {result && (
-        <div className="mt-6 bg-white rounded-xl border p-6">
+        <div className="mt-4 bg-white rounded-xl border p-6">
           <h4 className="font-semibold mb-2">Result</h4>
           <p className="text-gray-700 whitespace-pre-wrap">{result}</p>
         </div>
