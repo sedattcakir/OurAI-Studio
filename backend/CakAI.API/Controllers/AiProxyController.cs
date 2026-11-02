@@ -24,23 +24,43 @@ public class AiProxyController : ControllerBase
         _aiServiceUrl = config["AiService:BaseUrl"] ?? "http://localhost:8000";
     }
 
-    public record GenerateRequest(string Prompt, int MaxTokens = 50, float Temperature = 0.8f);
+    public record GenerateRequest(
+        string? Prompt = null,
+        int MaxTokens = 50,
+        float Temperature = 0.8f,
+        string? Model = null,
+        string? Action = null,
+        JsonElement? Params = null
+    );
 
     [HttpPost("generate")]
     public async Task<IActionResult> Generate(GenerateRequest req)
     {
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-        var submitPayload = JsonSerializer.Serialize(new
+        var model = req.Model ?? "ourllm";
+        var action = req.Action ?? "generate";
+
+        object jobParams;
+        if (req.Params.HasValue && req.Params.Value.ValueKind == JsonValueKind.Object)
         {
-            model = "ourllm",
-            action = "generate",
-            @params = new
+            jobParams = req.Params.Value;
+        }
+        else
+        {
+            jobParams = new
             {
-                prompt = req.Prompt,
+                prompt = req.Prompt ?? "",
                 max_tokens = req.MaxTokens,
                 temperature = req.Temperature,
-            },
+            };
+        }
+
+        var submitPayload = JsonSerializer.Serialize(new
+        {
+            model,
+            action,
+            @params = jobParams,
         });
 
         var submitContent = new StringContent(submitPayload, Encoding.UTF8, "application/json");
@@ -65,24 +85,28 @@ public class AiProxyController : ControllerBase
             if (status == "completed")
             {
                 var result = statusJson.RootElement.GetProperty("result");
-                var tokensGenerated = result.GetProperty("tokens_generated").GetInt32();
+
+                var modelName = model;
+                var tokensUsed = 0;
+                if (result.TryGetProperty("model", out var modelProp))
+                    modelName = modelProp.GetString() ?? model;
+                if (result.TryGetProperty("tokens_generated", out var tokensProp))
+                    tokensUsed = tokensProp.GetInt32();
 
                 _db.ApiUsageLogs.Add(new ApiUsageLog
                 {
                     UserId = userId,
                     Endpoint = "/api/ai/generate",
-                    ModelName = "OurLLM-v0.2",
-                    TokensUsed = tokensGenerated,
+                    ModelName = modelName,
+                    TokensUsed = tokensUsed,
                 });
                 await _db.SaveChangesAsync();
 
-                return Ok(new
-                {
-                    generated_text = result.GetProperty("generated_text").GetString(),
-                    model = result.GetProperty("model").GetString(),
-                    tokens_generated = tokensGenerated,
-                    job_id = jobId,
-                });
+                using var resultDoc = JsonDocument.Parse(result.GetRawText());
+                var dict = JsonSerializer.Deserialize<Dictionary<string, object>>(result.GetRawText())
+                           ?? new Dictionary<string, object>();
+                dict["job_id"] = jobId;
+                return Ok(dict);
             }
 
             if (status == "failed")

@@ -4,11 +4,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routers import llm, jobs
 from app.orchestrator.queue import start_worker, shutdown_worker, register_handler
 from app.orchestrator.handlers.llm_handler import llm_handle
+from app.orchestrator.handlers.image_handler import image_handle
+from app.orchestrator.handlers.voice_handler import voice_handle
+from app.orchestrator.handlers.speech_handler import speech_handle
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     register_handler("ourllm", llm_handle)
+    register_handler("ourimage", image_handle)
+    register_handler("ourvoice", voice_handle)
+    register_handler("ourspeech", speech_handle)
     await start_worker()
     yield
     await shutdown_worker()

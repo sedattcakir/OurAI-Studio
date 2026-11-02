@@ -4,6 +4,9 @@ import { useAuth } from "../contexts/AuthContext";
 const navItems = [
   { path: "/", label: "Dashboard", icon: "grid" },
   { path: "/text", label: "Text Generation", icon: "text" },
+  { path: "/image", label: "Image Generation", icon: "image" },
+  { path: "/voice", label: "Voice (TTS)", icon: "mic" },
+  { path: "/speech", label: "Speech (STT)", icon: "headphones" },
 ];
 
 function Layout() {

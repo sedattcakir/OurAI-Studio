@@ -19,6 +19,8 @@ function TextGeneration() {
         prompt: prompt.trim(),
         maxTokens: 50,
         temperature: 0.8,
+        model: "ourllm",
+        action: "generate",
       });
       setResult(response.data.generated_text);
       setJobId(response.data.job_id || "");

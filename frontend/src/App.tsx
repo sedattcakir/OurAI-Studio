@@ -3,6 +3,9 @@ import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import TextGeneration from "./pages/TextGeneration";
+import ImageGeneration from "./pages/ImageGeneration";
+import VoiceSynthesis from "./pages/VoiceSynthesis";
+import SpeechRecognition from "./pages/SpeechRecognition";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 
@@ -29,6 +32,9 @@ function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="text" element={<TextGeneration />} />
+          <Route path="image" element={<ImageGeneration />} />
+          <Route path="voice" element={<VoiceSynthesis />} />
+          <Route path="speech" element={<SpeechRecognition />} />
         </Route>
       </Routes>
     </AuthProvider>
