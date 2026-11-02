@@ -1,41 +1,47 @@
-import { useState } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { useJobs } from "../contexts/JobsContext";
 
 function SpeechRecognition() {
+  const { jobs, submitJob } = useJobs();
   const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [jobStatus, setJobStatus] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
   const [fileName, setFileName] = useState("");
+
+  const activeJob = jobs.find((j) => j.id === activeJobId);
+
+  useEffect(() => {
+    if (activeJob?.status === "completed" && activeJob.result) {
+      const r = activeJob.result as Record<string, string>;
+      setResult(r.transcription || r.message || JSON.stringify(activeJob.result));
+    }
+    if (activeJob?.status === "failed") {
+      setResult(`Error: ${activeJob.error || "Job failed"}`);
+    }
+  }, [activeJob?.status, activeJob?.result, activeJob?.error]);
+
+  const loading = submitting || (activeJob?.status === "pending" || activeJob?.status === "running");
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    setLoading(true);
+    setSubmitting(true);
     setResult("");
-    setJobStatus("Reading file...");
 
     try {
       const buffer = await file.arrayBuffer();
       const base64 = btoa(
         new Uint8Array(buffer).reduce((data, byte) => data + String.fromCharCode(byte), "")
       );
-
-      setJobStatus("Submitting...");
-      const response = await axios.post("/api/ai/generate", {
+      const id = await submitJob({
         model: "ourspeech",
         action: "transcribe",
         params: { audio_base64: base64 },
       });
-      const data = response.data;
-      setResult(data.transcription || data.message || JSON.stringify(data));
-      setJobStatus(data.status === "not_available" ? "Model Not Trained" : "Completed");
-    } catch {
-      setResult("Error: Could not reach the AI service.");
-      setJobStatus("Failed");
-    } finally {
-      setLoading(false);
-    }
+      setActiveJobId(id);
+    } catch { setResult("Error: Could not submit job."); }
+    finally { setSubmitting(false); }
   };
 
   return (
@@ -60,12 +66,10 @@ function SpeechRecognition() {
         )}
       </div>
 
-      {(loading || jobStatus) && (
+      {loading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-          {loading && (
-            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          )}
-          <span>Status: {loading ? "Processing..." : jobStatus}</span>
+          <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <span>Processing... You can navigate away safely.</span>
         </div>
       )}
 

@@ -131,11 +131,82 @@ public class AiProxyController : ControllerBase
         return StatusCode(408, new { error = "Job timed out", job_id = jobId });
     }
 
+    [HttpPost("submit")]
+    public async Task<IActionResult> Submit(GenerateRequest req)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
+        if (user.ApiCallsToday >= user.DailyApiLimit)
+            return StatusCode(429, new { error = "Daily API limit reached. Upgrade your plan for more.", limit = user.DailyApiLimit });
+
+        var model = req.Model ?? "ourllm";
+        var action = req.Action ?? "generate";
+
+        object jobParams;
+        if (req.Params.HasValue && req.Params.Value.ValueKind == JsonValueKind.Object)
+            jobParams = req.Params.Value;
+        else
+            jobParams = new { prompt = req.Prompt ?? "", max_tokens = req.MaxTokens, temperature = req.Temperature };
+
+        var submitPayload = JsonSerializer.Serialize(new { model, action, @params = jobParams });
+        var submitContent = new StringContent(submitPayload, Encoding.UTF8, "application/json");
+        var submitResponse = await _http.PostAsync($"{_aiServiceUrl}/jobs/submit", submitContent);
+
+        if (!submitResponse.IsSuccessStatusCode)
+        {
+            var error = await submitResponse.Content.ReadAsStringAsync();
+            return StatusCode((int)submitResponse.StatusCode, error);
+        }
+
+        var submitResult = JsonDocument.Parse(await submitResponse.Content.ReadAsStringAsync());
+        var jobId = submitResult.RootElement.GetProperty("id").GetString()!;
+
+        return Ok(new { jobId, model, action });
+    }
+
     [HttpGet("job/{jobId}")]
     public async Task<IActionResult> GetJobStatus(string jobId)
     {
         var response = await _http.GetAsync($"{_aiServiceUrl}/jobs/{jobId}");
         var result = await response.Content.ReadAsStringAsync();
         return Content(result, "application/json");
+    }
+
+    [HttpPost("job/{jobId}/complete")]
+    public async Task<IActionResult> MarkComplete(string jobId)
+    {
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+        var user = await _userManager.FindByIdAsync(userId);
+        if (user == null) return Unauthorized();
+
+        var response = await _http.GetAsync($"{_aiServiceUrl}/jobs/{jobId}");
+        var statusJson = JsonDocument.Parse(await response.Content.ReadAsStringAsync());
+        var status = statusJson.RootElement.GetProperty("status").GetString();
+        if (status != "completed") return BadRequest(new { error = "Job not completed yet." });
+
+        var result = statusJson.RootElement.GetProperty("result");
+        var modelName = "unknown";
+        var tokensUsed = 0;
+        if (result.TryGetProperty("model", out var modelProp))
+            modelName = modelProp.GetString() ?? "unknown";
+        if (result.TryGetProperty("tokens_generated", out var tokensProp))
+            tokensUsed = tokensProp.GetInt32();
+
+        user.ApiCallsToday++;
+        user.TotalApiCalls++;
+        await _userManager.UpdateAsync(user);
+
+        _db.ApiUsageLogs.Add(new ApiUsageLog
+        {
+            UserId = userId,
+            Endpoint = "/api/ai/submit",
+            ModelName = modelName,
+            TokensUsed = tokensUsed,
+        });
+        await _db.SaveChangesAsync();
+
+        return Ok(new { tracked = true });
     }
 }

@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { JobsProvider } from "./contexts/JobsContext";
 import Layout from "./components/Layout";
 import Dashboard from "./pages/Dashboard";
 import TextGeneration from "./pages/TextGeneration";
@@ -23,6 +24,7 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 function App() {
   return (
     <AuthProvider>
+      <JobsProvider>
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
@@ -45,6 +47,7 @@ function App() {
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Routes>
+      </JobsProvider>
     </AuthProvider>
   );
 }

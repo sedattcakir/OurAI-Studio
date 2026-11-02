@@ -1,33 +1,41 @@
-import { useState } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { useJobs } from "../contexts/JobsContext";
 
 function VoiceSynthesis() {
+  const { jobs, submitJob } = useJobs();
   const [text, setText] = useState("");
   const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [jobStatus, setJobStatus] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
+
+  const activeJob = jobs.find((j) => j.id === activeJobId);
+
+  useEffect(() => {
+    if (activeJob?.status === "completed" && activeJob.result) {
+      const r = activeJob.result as Record<string, string>;
+      setResult(r.message || JSON.stringify(activeJob.result));
+    }
+    if (activeJob?.status === "failed") {
+      setResult(`Error: ${activeJob.error || "Job failed"}`);
+    }
+  }, [activeJob?.status, activeJob?.result, activeJob?.error]);
 
   const handleSynthesize = async () => {
     if (!text.trim()) return;
-    setLoading(true);
+    setSubmitting(true);
     setResult("");
-    setJobStatus("Submitting...");
     try {
-      const response = await axios.post("/api/ai/generate", {
+      const id = await submitJob({
         model: "ourvoice",
         action: "synthesize",
         params: { text: text.trim() },
       });
-      const data = response.data;
-      setResult(data.message || JSON.stringify(data));
-      setJobStatus(data.status === "not_available" ? "Model Not Trained" : "Completed");
-    } catch {
-      setResult("Error: Could not reach the AI service.");
-      setJobStatus("Failed");
-    } finally {
-      setLoading(false);
-    }
+      setActiveJobId(id);
+    } catch { setResult("Error: Could not submit job."); }
+    finally { setSubmitting(false); }
   };
+
+  const loading = submitting || (activeJob?.status === "pending" || activeJob?.status === "running");
 
   return (
     <div className="max-w-2xl">
@@ -51,12 +59,10 @@ function VoiceSynthesis() {
         </button>
       </div>
 
-      {(loading || jobStatus) && (
+      {loading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-          {loading && (
-            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          )}
-          <span>Status: {loading ? "Processing..." : jobStatus}</span>
+          <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <span>Processing... You can navigate away safely.</span>
         </div>
       )}
 

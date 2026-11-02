@@ -1,37 +1,45 @@
-import { useState } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { useJobs } from "../contexts/JobsContext";
 
 function TextGeneration() {
+  const { jobs, submitJob } = useJobs();
   const [prompt, setPrompt] = useState("");
   const [result, setResult] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [jobStatus, setJobStatus] = useState("");
-  const [jobId, setJobId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
+
+  const activeJob = jobs.find((j) => j.id === activeJobId);
+
+  useEffect(() => {
+    if (activeJob?.status === "completed" && activeJob.result) {
+      setResult((activeJob.result as Record<string, string>).generated_text || "No text returned");
+    }
+    if (activeJob?.status === "failed") {
+      setResult(`Error: ${activeJob.error || "Job failed"}`);
+    }
+  }, [activeJob?.status, activeJob?.result, activeJob?.error]);
 
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
-    setLoading(true);
+    setSubmitting(true);
     setResult("");
-    setJobStatus("Submitting...");
-    setJobId("");
     try {
-      const response = await axios.post("/api/ai/generate", {
+      const id = await submitJob({
         prompt: prompt.trim(),
         maxTokens: 50,
         temperature: 0.8,
         model: "ourllm",
         action: "generate",
       });
-      setResult(response.data.generated_text);
-      setJobId(response.data.job_id || "");
-      setJobStatus("Completed");
+      setActiveJobId(id);
     } catch {
-      setResult("Error: Could not generate text. Is the AI service running?");
-      setJobStatus("Failed");
+      setResult("Error: Could not submit job. Is the AI service running?");
     } finally {
-      setLoading(false);
+      setSubmitting(false);
     }
   };
+
+  const loading = submitting || (activeJob?.status === "pending" || activeJob?.status === "running");
 
   return (
     <div className="max-w-2xl">
@@ -52,13 +60,10 @@ function TextGeneration() {
         </button>
       </div>
 
-      {(loading || jobStatus) && (
+      {loading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-          {loading && (
-            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          )}
-          <span>Status: {loading ? "Processing..." : jobStatus}</span>
-          {jobId && <span className="text-xs text-gray-400">Job: {jobId.slice(0, 8)}</span>}
+          <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <span>Processing... You can navigate away — result will appear in the Jobs panel.</span>
         </div>
       )}
 

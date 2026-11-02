@@ -1,14 +1,25 @@
-import { useState } from "react";
-import axios from "axios";
+import { useState, useEffect } from "react";
+import { useJobs } from "../contexts/JobsContext";
 
 function AvatarGeneration() {
+  const { jobs, submitJob } = useJobs();
   const [numFrames, setNumFrames] = useState(20);
   const [faceBase64, setFaceBase64] = useState("");
   const [animation, setAnimation] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [jobStatus, setJobStatus] = useState("");
-  const [jobId, setJobId] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [activeJobId, setActiveJobId] = useState("");
   const [fileName, setFileName] = useState("");
+
+  const activeJob = jobs.find((j) => j.id === activeJobId);
+
+  useEffect(() => {
+    if (activeJob?.status === "completed" && activeJob.result) {
+      const r = activeJob.result as Record<string, string>;
+      if (r.animation_base64) setAnimation(r.animation_base64);
+    }
+  }, [activeJob?.status, activeJob?.result]);
+
+  const loading = submitting || (activeJob?.status === "pending" || activeJob?.status === "running");
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -24,32 +35,19 @@ function AvatarGeneration() {
   };
 
   const handleGenerate = async () => {
-    setLoading(true);
+    setSubmitting(true);
     setAnimation("");
-    setJobStatus("Submitting...");
-    setJobId("");
     try {
       const params: Record<string, unknown> = { num_frames: numFrames };
       if (faceBase64) params.face_base64 = faceBase64;
-
-      const response = await axios.post("/api/ai/generate", {
+      const id = await submitJob({
         model: "ouravatar",
         action: "animate",
         params,
       });
-      const data = response.data;
-      if (data.animation_base64) {
-        setAnimation(data.animation_base64);
-        setJobStatus("Completed");
-      } else {
-        setJobStatus(data.message || "Model not available");
-      }
-      setJobId(data.job_id || "");
-    } catch {
-      setJobStatus("Failed — Is the AI service running?");
-    } finally {
-      setLoading(false);
-    }
+      setActiveJobId(id);
+    } catch { /* shown in jobs panel */ }
+    finally { setSubmitting(false); }
   };
 
   return (
@@ -92,13 +90,10 @@ function AvatarGeneration() {
         </div>
       </div>
 
-      {(loading || jobStatus) && (
+      {loading && (
         <div className="mt-4 flex items-center gap-2 text-sm text-gray-500">
-          {loading && (
-            <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
-          )}
-          <span>Status: {loading ? "Processing..." : jobStatus}</span>
-          {jobId && <span className="text-xs text-gray-400">Job: {jobId.slice(0, 8)}</span>}
+          <div className="w-4 h-4 border-2 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <span>Processing... You can navigate away safely.</span>
         </div>
       )}
 
