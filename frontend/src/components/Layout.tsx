@@ -7,6 +7,7 @@ const navItems = [
   { path: "/image", label: "Image Generation", icon: "image" },
   { path: "/voice", label: "Voice (TTS)", icon: "mic" },
   { path: "/speech", label: "Speech (STT)", icon: "headphones" },
+  { path: "/video", label: "Video Generation", icon: "film" },
 ];
 
 function Layout() {

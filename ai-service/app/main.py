@@ -7,6 +7,7 @@ from app.orchestrator.handlers.llm_handler import llm_handle
 from app.orchestrator.handlers.image_handler import image_handle
 from app.orchestrator.handlers.voice_handler import voice_handle
 from app.orchestrator.handlers.speech_handler import speech_handle
+from app.orchestrator.handlers.video_handler import video_handle
 
 
 @asynccontextmanager
@@ -15,6 +16,7 @@ async def lifespan(app: FastAPI):
     register_handler("ourimage", image_handle)
     register_handler("ourvoice", voice_handle)
     register_handler("ourspeech", speech_handle)
+    register_handler("ourvideo", video_handle)
     await start_worker()
     yield
     await shutdown_worker()
