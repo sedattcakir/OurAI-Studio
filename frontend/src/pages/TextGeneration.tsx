@@ -11,9 +11,9 @@ function TextGeneration() {
     setLoading(true);
     setResult("");
     try {
-      const response = await axios.post("/llm/generate", {
+      const response = await axios.post("/api/ai/generate", {
         prompt: prompt.trim(),
-        max_tokens: 50,
+        maxTokens: 50,
         temperature: 0.8,
       });
       setResult(response.data.generated_text);

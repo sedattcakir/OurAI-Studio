@@ -7,8 +7,16 @@ services:
       - "3000:3000"
     volumes:
       - ./frontend/src:/app/src
+
+  backend:
+    build: ./backend/CakAI.API
+    ports:
+      - "5000:5000"
     environment:
-      - VITE_API_URL=http://localhost:5000
+      - ASPNETCORE_URLS=http://+:5000
+      - ConnectionStrings__DefaultConnection=Server=sqlserver;Database=CakAIStudio;User=sa;Password=CakAI@2024;TrustServerCertificate=true
+    depends_on:
+      - sqlserver
 
   ai-service:
     build: ./ai-service
@@ -23,3 +31,11 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    ports:
+      - "1433:1433"
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=CakAI@2024

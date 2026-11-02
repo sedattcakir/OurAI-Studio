@@ -1,4 +1,5 @@
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const navItems = [
   { path: "/", label: "Dashboard", icon: "grid" },
@@ -7,6 +8,7 @@ const navItems = [
 
 function Layout() {
   const location = useLocation();
+  const { user, logout } = useAuth();
 
   return (
     <div className="flex h-screen">
@@ -30,8 +32,15 @@ function Layout() {
             </Link>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-700 text-xs text-gray-500">
-          v0.1.0
+        <div className="p-4 border-t border-gray-700">
+          <p className="text-sm text-gray-300 truncate">{user?.fullName}</p>
+          <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+          <button
+            onClick={logout}
+            className="mt-2 text-xs text-gray-400 hover:text-white transition-colors"
+          >
+            Sign Out
+          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto">

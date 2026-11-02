@@ -1,4 +1,20 @@
+import { useEffect, useState } from "react";
+import axios from "axios";
+
 function Dashboard() {
+  const [todayCalls, setTodayCalls] = useState(0);
+  const [totalCalls, setTotalCalls] = useState(0);
+
+  useEffect(() => {
+    axios
+      .get("/api/usage/my")
+      .then((res) => {
+        setTodayCalls(res.data.todayCalls);
+        setTotalCalls(res.data.totalCalls);
+      })
+      .catch(() => {});
+  }, []);
+
   const models = [
     { name: "OurLLM", status: "active", description: "Text generation model" },
     { name: "OurImage", status: "coming", description: "Image generation model" },
@@ -13,7 +29,7 @@ function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
         <div className="bg-white rounded-xl border p-5">
           <p className="text-sm text-gray-500">Total Generations</p>
-          <p className="text-2xl font-bold mt-1">0</p>
+          <p className="text-2xl font-bold mt-1">{totalCalls}</p>
         </div>
         <div className="bg-white rounded-xl border p-5">
           <p className="text-sm text-gray-500">Active Models</p>
@@ -21,7 +37,7 @@ function Dashboard() {
         </div>
         <div className="bg-white rounded-xl border p-5">
           <p className="text-sm text-gray-500">API Calls Today</p>
-          <p className="text-2xl font-bold mt-1">0</p>
+          <p className="text-2xl font-bold mt-1">{todayCalls}</p>
         </div>
       </div>
 
